@@ -30,7 +30,12 @@
             }"
             @click="() => doClickBlock(block)"
           >
-            {{ block.type }}
+            <template v-if="getImage(block.type)">
+              <img :src="getImage(block.type)" class="block-img" />
+            </template>
+            <template v-else>
+              {{ block.type }}
+            </template>
           </div>
         </div>
       </div>
@@ -48,7 +53,12 @@
           class="block"
           @click="() => doClickBlock(randomBlock[0], index)"
         >
-          {{ randomBlock[0].type }}
+          <template v-if="getImage(randomBlock[0].type)">
+            <img :src="getImage(randomBlock[0].type)" class="block-img" />
+          </template>
+          <template v-else>
+            {{ randomBlock[0].type }}
+          </template>
         </div>
         <!-- 隐藏 -->
         <div
@@ -65,7 +75,12 @@
     <!-- 槽位 -->
     <a-row v-if="slotAreaVal.length > 0" align="center" class="slot-board">
       <div v-for="(slotBlock, index) in slotAreaVal" :key="index" class="block">
-        {{ slotBlock?.type }}
+        <template v-if="slotBlock && getImage(slotBlock.type)">
+          <img :src="getImage(slotBlock.type)" class="block-img" />
+        </template>
+        <template v-else>
+          {{ slotBlock?.type }}
+        </template>
       </div>
     </a-row>
     <!-- 技能 -->
@@ -87,6 +102,7 @@ import useGame from "../core/game";
 import { onMounted } from "vue";
 import { useRouter } from "vue-router";
 import MyAd from "../components/MyAd.vue";
+import { useGlobalStore } from "../core/globalStore";
 
 const router = useRouter();
 
@@ -110,6 +126,28 @@ const {
   doHolyLight,
   doSeeRandom,
 } = useGame();
+
+// global store to read current gameConfig (animals order etc)
+const { gameConfig } = useGlobalStore();
+
+// 动态导入 `src/assets/animals` 下的所有图片（如果你把素材放到该目录下）
+// 使用 Vite 的 import.meta.glob，当目录为空时返回空对象。
+const imageModules = import.meta.glob("../assets/animals/*", {
+  eager: true,
+  as: "url",
+}) as Record<string, string>;
+const imageUrls = Object.values(imageModules || {});
+
+/**
+ * 根据方块的 type 返回图片 URL（优先），没有图片则返回 null
+ */
+const getImage = (type: string) => {
+  if (!imageUrls || imageUrls.length === 0) return null;
+  // 尝试按 gameConfig.animals 的顺序做映射
+  const idx = gameConfig.animals.indexOf(type);
+  const useIdx = idx >= 0 ? idx % imageUrls.length : 0;
+  return imageUrls[useIdx];
+};
 
 /**
  * 回上一页
@@ -159,6 +197,13 @@ onMounted(() => {
   background: white;
   text-align: center;
   vertical-align: top;
+  display: inline-block;
+}
+
+.block-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: inline-block;
 }
 
